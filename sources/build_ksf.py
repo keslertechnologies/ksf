@@ -812,7 +812,7 @@ feature kern {
 """
 
 
-LOGO_COLOR = "#12B886"   # KTU is #FE8323, KUI is #6F32E5
+LOGO_COLOR = "#14B8A6"   # Keslers palette: Ocean Mist
 
 
 def render_images(ttf):
