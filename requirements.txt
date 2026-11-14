@@ -1,0 +1,4 @@
+brotli
+fonttools
+pillow
+skia-pathops

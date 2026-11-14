@@ -12,11 +12,18 @@ Every glyph is constructed from geometric primitives (rectangles,
 parallelograms, ellipses) combined with boolean path ops, so the font is
 fully reproducible. Tweak the constants below and re-run.
 
-Requires: fonttools, skia-pathops, brotli (for woff2)
-    pip install fonttools skia-pathops brotli
-Usage:
-    python3 build_ksf.py            # writes fonts/KSF.otf, .ttf, .woff2
+Requires (see requirements.txt):
+    pip install -r requirements.txt
+Usage (from the repo root):
+    python3 sources/build_ksf.py
+
+Writes fonts/otf/KSF.otf, fonts/ttf/KSF.ttf, fonts/webfonts/KSF.woff2,
+documentation/specimen.png and ksf.png. The font version is read from
+package.json so npm and the font files never disagree.
+
+Licensed under the SIL Open Font License 1.1 (see OFL.txt).
 """
+import json
 import math
 import os
 
@@ -26,6 +33,7 @@ from fontTools.pens.t2CharStringPen import T2CharStringPen
 from fontTools.pens.ttGlyphPen import TTGlyphPen
 from fontTools.pens.cu2quPen import Cu2QuPen
 from fontTools.pens.transformPen import TransformPen
+from fontTools.misc.timeTools import timestampNow
 from fontTools.ttLib import TTFont
 
 # ---------------------------------------------------------------- metrics
@@ -693,6 +701,18 @@ def notdef():
     return p, 600
 
 
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+with open(os.path.join(ROOT, "package.json")) as _f:
+    PKG_VERSION = json.load(_f)["version"]
+_maj, _min, _pat = (int(n) for n in PKG_VERSION.split("."))
+FONT_REVISION = float(f"{_maj}.{_min:02d}{_pat}")           # 1.0.0 -> 1.000
+VERSION_STRING = f"Version {_maj}.{_min:02d}{_pat}"
+
+COPYRIGHT = "Copyright 2026 The KSF Project Authors (https://gitlab.com/keslers/ksf)"
+LICENSE = ("This Font Software is licensed under the SIL Open Font License, Version 1.1. "
+           "This license is available with a FAQ at: https://openfontlicense.org")
+
+
 def build(path_out, cff):
     fb = FontBuilder(UPM, isTTF=not cff)
     order = glyph_order()
@@ -741,22 +761,33 @@ def build(path_out, cff):
     fb.setupHorizontalMetrics(metrics)
     fb.setupHorizontalHeader(ascent=ASC, descent=DESC)
     fb.setupNameTable({
+        "copyright": COPYRIGHT,
         "familyName": "KSF",
         "styleName": "Regular",
-        "uniqueFontIdentifier": "KSF-Regular-1.000",
-        "fullName": "KSF",
+        "uniqueFontIdentifier": f"{PKG_VERSION};KSLR;KSF-Regular",
+        "fullName": "KSF Regular",
+        "version": VERSION_STRING,
         "psName": "KSF-Regular",
-        "version": "Version 1.000",
-        "description": "Keslers Sans Font — heavy geometric caps from the Keslers logo lettering.",
+        "manufacturer": "Kesler Technologies",
+        "designer": "Christian 'CJ' Kesler",
+        "description": "Keslers Sans Font: heavy geometric double-struck capitals "
+                       "from the Keslers logo lettering.",
+        "vendorURL": "https://gitlab.com/keslers",
+        "designerURL": "https://gitlab.com/keslers",
+        "licenseDescription": LICENSE,
+        "licenseInfoURL": "https://openfontlicense.org",
     })
     fb.setupOS2(
+        version=4,
         sTypoAscender=ASC, sTypoDescender=DESC, sTypoLineGap=0,
         usWinAscent=ASC, usWinDescent=-DESC,
-        sCapHeight=CAP, sxHeight=CAP, usWeightClass=700,
+        sCapHeight=CAP, sxHeight=CAP, usWeightClass=400,
         achVendID="KSLR", fsSelection=0x40 | 0x80,  # REGULAR | USE_TYPO_METRICS
+        fsType=0,                                    # installable embedding (OFL)
     )
     fb.setupPost()
-    fb.setupHead(unitsPerEm=UPM)
+    now = timestampNow()
+    fb.setupHead(unitsPerEm=UPM, fontRevision=FONT_REVISION, created=now, modified=now)
     fb.addOpenTypeFeatures(KERN_FEA)
     fb.save(path_out)
 
@@ -781,18 +812,65 @@ feature kern {
 """
 
 
+LOGO_COLOR = "#12B886"   # KTU is #FE8323, KUI is #6F32E5
+
+
+def render_images(ttf):
+    """Specimen sheet + repo/avatar logo (white K, colored SF), rendered with
+    the font itself. Skipped if Pillow isn't installed."""
+    try:
+        from PIL import Image, ImageDraw, ImageFont
+    except ImportError:
+        print("Pillow not installed: skipping specimen.png and ksf.png")
+        return []
+
+    lines = [("KESLER TECHNOLOGIES", 104), ("ABCDEFGHIJKLM", 110), ("NOPQRSTUVWXYZ", 110),
+             ("0123456789", 110), (".,:;!?'\"-\u2013\u2014_/\\()[]+=<>#%$*&@", 90),
+             ("THE QUICK BROWN FOX JUMPS OVER", 80), ("THE LAZY DOG 2026", 80)]
+    img = Image.new("RGB", (1700, 1150), "black")
+    d = ImageDraw.Draw(img)
+    y = 30
+    for text, size in lines:
+        d.text((40, y), text, font=ImageFont.truetype(ttf, size), fill="white")
+        y += int(size * 1.4)
+    specimen = os.path.join(ROOT, "documentation", "specimen.png")
+    os.makedirs(os.path.dirname(specimen), exist_ok=True)
+    img.save(specimen)
+
+    # Logo: same canvas and proportions as the KTU / KUI logos (1024px,
+    # letters ~280px tall, centred).
+    size = 1024
+    f = ImageFont.truetype(ttf, int(280 / CAP * UPM))
+    img = Image.new("RGB", (size, size), "black")
+    d = ImageDraw.Draw(img)
+    wk = d.textlength("K", font=f)
+    w = d.textlength("KSF", font=f)
+    x = (size - w) / 2
+    cap_px = 280
+    y = (size - cap_px) / 2 - f.getmetrics()[0] + cap_px
+    d.text((x, y), "K", font=f, fill="white")
+    d.text((x + wk, y), "SF", font=f, fill=LOGO_COLOR)
+    logo = os.path.join(ROOT, "ksf.png")
+    img.save(logo)
+    return [specimen, logo]
+
+
 def main():
-    here = os.path.dirname(os.path.abspath(__file__))
-    out = os.path.join(here, "fonts")
-    os.makedirs(out, exist_ok=True)
-    otf = os.path.join(out, "KSF.otf")
-    ttf = os.path.join(out, "KSF.ttf")
-    build(otf, cff=True)
-    build(ttf, cff=False)
-    f = TTFont(ttf)
+    outs = {
+        "otf": os.path.join(ROOT, "fonts", "otf", "KSF.otf"),
+        "ttf": os.path.join(ROOT, "fonts", "ttf", "KSF.ttf"),
+        "woff2": os.path.join(ROOT, "fonts", "webfonts", "KSF.woff2"),
+    }
+    for path in outs.values():
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+    build(outs["otf"], cff=True)
+    build(outs["ttf"], cff=False)
+    f = TTFont(outs["ttf"])
     f.flavor = "woff2"
-    f.save(os.path.join(out, "KSF.woff2"))
-    print("wrote", otf, ttf, os.path.join(out, "KSF.woff2"))
+    f.save(outs["woff2"])
+    written = list(outs.values()) + render_images(outs["ttf"])
+    for path in written:
+        print("wrote", os.path.relpath(path, ROOT))
 
 
 if __name__ == "__main__":

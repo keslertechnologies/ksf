@@ -1,0 +1,27 @@
+{
+	"name": "@keslers/ksf",
+	"version": "1.0.0",
+	"description": "Keslers Sans Font",
+	"license": "OFL-1.1",
+	"author": "Christian 'CJ' Kesler, Kesler Technologies",
+	"exports": {
+		".": "./styles.css",
+		"./styles.css": "./styles.css",
+		"./fonts/*": "./fonts/*",
+		"./package.json": "./package.json"
+	},
+	"jsdelivr": "styles.css",
+	"unpkg": "styles.css",
+	"style": "styles.css",
+	"files": [
+		"OFL.txt",
+		"fonts",
+		"styles.css"
+	],
+	"scripts": {
+		"build": "python3 sources/build_ksf.py"
+	},
+	"publishConfig": {
+		"access": "public"
+	}
+}
