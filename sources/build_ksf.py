@@ -249,9 +249,12 @@ def _():
 
 
 # -- I
-@glyph("I", [0x49], V)
+@glyph("I", [0x49], 400, 30, 30)
 def _():
-    return SUB(R(0, 0, V, CAP), vslit(0))
+    # serifed I: centred hollow stem capped top and bottom like T's crossbar
+    w = 400
+    sx = w / 2 - V / 2
+    return SUB(U(R(0, CAP - H, w, CAP), R(0, 0, w, H), R(sx, 0, sx + V, CAP)), vslit(sx))
 
 
 # -- J
