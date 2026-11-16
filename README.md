@@ -4,6 +4,8 @@
 [![npm downloads](https://img.shields.io/npm/dm/@keslers/ksf.svg)](https://www.npmjs.com/package/@keslers/ksf)
 [![license](https://img.shields.io/npm/l/@keslers/ksf)](https://www.npmjs.com/package/@keslers/ksf)
 
+<img src="https://gitlab.com/keslers/ksf/-/raw/main/ksf.png" alt="KSF" width="200" />
+
 # @keslers/ksf — Keslers Sans Font
 
 A heavy, geometric, double-struck display typeface drawn from the Keslers logo lettering.
